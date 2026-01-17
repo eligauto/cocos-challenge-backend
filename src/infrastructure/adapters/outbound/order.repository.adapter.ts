@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Order } from '../../../domain/entities/order.entity';
 import { OrderStatus } from '../../../domain/value-objects/order-status.enum';
-import { OrderRepository } from '../../../domain/ports/outbound/order.repository';
+import { OrderRepository, CreateOrderData } from '../../../domain/ports/outbound/order.repository';
 import { OrderOrmEntity } from '../../persistence/entities/order.orm-entity';
 import { OrderMapper } from '../../persistence/mappers/order.mapper';
 
@@ -35,7 +35,7 @@ export class OrderRepositoryAdapter implements OrderRepository {
     return entities.map(OrderMapper.toDomain);
   }
 
-  async save(order: Omit<Order, 'id'>): Promise<Order> {
+  async save(order: CreateOrderData): Promise<Order> {
     const ormEntity = new OrderOrmEntity();
     ormEntity.instrumentId = order.instrumentId;
     ormEntity.userId = order.userId;
