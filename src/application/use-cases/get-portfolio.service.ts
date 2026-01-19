@@ -33,13 +33,10 @@ export class GetPortfolioService implements GetPortfolioUseCase {
 
     const filledOrders = await this.orderRepository.findByUserIdAndStatus(userId, OrderStatus.FILLED);
 
-    // Calculate cash balance and positions
     const { cashBalance, positionsMap } = this.calculateHoldings(filledOrders);
 
-    // Get instruments and market data for positions
     const positions = await this.buildPositions(positionsMap);
 
-    // Calculate total account value
     const positionsValue = positions.reduce((sum, p) => sum + p.getTotalValue(), 0);
     const totalAccountValue = cashBalance + positionsValue;
 
@@ -105,7 +102,6 @@ export class GetPortfolioService implements GetPortfolioUseCase {
       if (newQuantity <= 0) {
         map.delete(instrumentId);
       } else {
-        // Proportionally reduce cost
         const avgPrice = current.totalCost / current.quantity;
         map.set(instrumentId, {
           quantity: newQuantity,

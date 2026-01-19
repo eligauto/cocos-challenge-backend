@@ -30,7 +30,7 @@ export class OrderRepositoryAdapter implements OrderRepository {
   async findByUserIdAndStatus(userId: number, status: OrderStatus): Promise<Order[]> {
     const entities = await this.orderRepository.find({
       where: { userId, status },
-      order: { datetime: 'DESC' },
+      order: { datetime: 'ASC' }, // Chronological order for correct portfolio calculation
     });
     return entities.map(OrderMapper.toDomain);
   }

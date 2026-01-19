@@ -8,15 +8,16 @@ import {
   HttpException,
   HttpStatus,
   Inject,
+  Res,
 } from '@nestjs/common';
+import { Response } from 'express';
 import { USE_CASE_TOKENS } from '../../../application/use-cases/use-case.tokens';
 import { CreateOrderUseCase } from '../../../domain/ports/inbound/create-order.use-case';
 import { CancelOrderUseCase } from '../../../domain/ports/inbound/cancel-order.use-case';
 import { CreateOrderDto } from './dto/create-order.dto';
+import { OrderStatus } from '../../../domain/value-objects/order-status.enum';
 import { EntityNotFoundException } from '../../../domain/exceptions/entity-not-found.exception';
 import { InvalidOrderException } from '../../../domain/exceptions/invalid-order.exception';
-import { InsufficientFundsException } from '../../../domain/exceptions/insufficient-funds.exception';
-import { InsufficientSharesException } from '../../../domain/exceptions/insufficient-shares.exception';
 import { OrderCannotBeCancelledException } from '../../../domain/exceptions/order-cannot-be-cancelled.exception';
 import { DomainException } from '../../../domain/exceptions/domain.exception';
 
@@ -30,7 +31,7 @@ export class OrdersController {
   ) {}
 
   @Post()
-  async createOrder(@Body() dto: CreateOrderDto) {
+  async createOrder(@Body() dto: CreateOrderDto, @Res() res: Response) {
     try {
       const order = await this.createOrderUseCase.execute({
         userId: dto.userId,
@@ -42,7 +43,7 @@ export class OrdersController {
         price: dto.price,
       });
 
-      return {
+      const responseBody = {
         id: order.id,
         instrumentId: order.instrumentId,
         userId: order.userId,
@@ -53,6 +54,12 @@ export class OrdersController {
         status: order.status,
         datetime: order.datetime,
       };
+
+      const statusCode = order.status === OrderStatus.REJECTED 
+        ? HttpStatus.UNPROCESSABLE_ENTITY 
+        : HttpStatus.CREATED;
+
+      return res.status(statusCode).json(responseBody);
     } catch (error) {
       this.handleError(error);
     }
@@ -88,12 +95,6 @@ export class OrdersController {
     }
     if (error instanceof InvalidOrderException) {
       throw new HttpException(error.message, HttpStatus.BAD_REQUEST);
-    }
-    if (error instanceof InsufficientFundsException) {
-      throw new HttpException(error.message, HttpStatus.UNPROCESSABLE_ENTITY);
-    }
-    if (error instanceof InsufficientSharesException) {
-      throw new HttpException(error.message, HttpStatus.UNPROCESSABLE_ENTITY);
     }
     if (error instanceof OrderCannotBeCancelledException) {
       throw new HttpException(error.message, HttpStatus.CONFLICT);
