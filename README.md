@@ -1,16 +1,13 @@
 # Cocos Challenge Backend
 
-API REST para gestión de portfolio de inversiones, busqueda de activos y envio de ordenes al mercado.
+API REST para gestion de portfolio de inversiones, busqueda de activos y envio de ordenes al mercado.
 
-## Arquitectura
+## Tecnologias
 
-Este proyecto implementa **Arquitectura Hexagonal** (Ports & Adapters), que permite:
-
-- **Independencia del framework**: El dominio no conoce NestJS
-- **Testabilidad**: Facil mockeo de dependencias externas
-- **Mantenibilidad**: Separacion clara de responsabilidades
-- **Flexibilidad**: Cambiar infraestructura sin afectar el negocio
-
+- **NestJS** - Framework de Node.js
+- **TypeORM** - ORM para PostgreSQL
+- **Jest** - Testing
+- **class-validator** - Validacion de DTOs
 
 ### Flujo de Dependencias
 
@@ -19,17 +16,13 @@ Este proyecto implementa **Arquitectura Hexagonal** (Ports & Adapters), que perm
                    (adapter)     (application)  (core)    (adapter)
 ```
 
-**Regla de Dependencia**: Las dependencias siempre apuntan hacia el dominio. El dominio no conoce nada del exterior.
+**Regla de Dependencia**: Las dependencias siempre apuntan hacia el dominio.
 
 ## Instalacion
 
 ```bash
 npm install
 ```
-
-## Configuracion
-
-Crear archivo `.env` en la raíz del proyecto:
 
 ## Ejecucion
 
@@ -44,25 +37,70 @@ npm run start:dev
 npm run test
 ```
 
+## API Endpoints (Resumen)
+Les dejo documentado los endpoints principales de la API. De todas formas deje el Postman collection para que puedan probarla mas facilmente.
+### Portfolio
+```
+GET /portfolio/:userId
+```
+Retorna el valor total de la cuenta, efectivo disponible y posiciones del usuario.
+
+### Busqueda de Instrumentos
+```
+GET /instruments/search?query=PAMP
+```
+Busca activos por ticker o nombre.
+
+### Crear Orden
+```
+POST /orders
+```
+```json
+{
+  "userId": 1,
+  "instrumentId": 31,
+  "side": "BUY",
+  "type": "MARKET",
+  "quantity": 10
+}
+```
+Opciones de `side`: `BUY`, `SELL`, `CASH_IN`, `CASH_OUT`
+Opciones de `type`: `MARKET`, `LIMIT`
+
+Se puede enviar `quantity` (cantidad de acciones) o `totalAmount` (monto en pesos).
+
+### Cancelar Orden
+```
+PATCH /orders/:id/cancel
+```
+```json
+{
+  "userId": 1
+}
+```
+Solo se pueden cancelar ordenes con estado `NEW`.
+
 ## Decisiones de Diseño
 
-### Por que Arquitectura Hexagonal?
-
-1. **Separacion de concerns**: El dominio contiene la logica de negocio pura sin depender de frameworks o bases de datos.
-
-2. **Inversion de dependencias**: Los repositorios son interfaces en el dominio, implementadas en infraestructura.
-
-3. **Testabilidad**: Podemos testear casos de uso con mocks sin necesidad de base de datos.
+### Arquitectura Hexagonal
+- **Dominio aislado**: La logica de negocio no depende de frameworks ni bases de datos
+- **Inversion de dependencias**: Los repositorios son interfaces en el dominio, implementadas en infraestructura
+- **Testabilidad**: Los casos de uso se testean con mocks sin necesidad de base de datos
 
 ### Modelado del Dominio
-
 - **Order**: Entidad central que representa una orden de compra/venta
-- **Instrument**: Representa un activo financiero (accion, moneda)
-- **Position**: Valor calculado que representa la tenencia de un usuario en un instrumento
-- **Money**: Value Object para manejar valores monetarios con precisión
+- **Instrument**: Activo financiero (ACCIONES o MONEDA)
+- **Position**: Valor calculado que representa la tenencia de un usuario
+- **CASH_IN/CASH_OUT**: Modelados como ordenes sobre el instrumento ARS (tipo MONEDA)
 
-### Consideraciones Adicionales
+### Validaciones de Negocio
+- `BUY`/`SELL` solo permitidos para instrumentos tipo `ACCIONES`
+- `CASH_IN`/`CASH_OUT` solo permitidos para instrumentos tipo `MONEDA`
+- Ordenes con fondos/acciones insuficientes se guardan con estado `REJECTED`
+- Ordenes `MARKET` se ejecutan inmediatamente (`FILLED`)
+- Ordenes `LIMIT` quedan pendientes (`NEW`)
 
-- Las ordenes CASH_IN/CASH_OUT se modelan como ordenes con el instrumento ARS (MONEDA)
-- El calculo de posiciones se realiza agregando todas las ordenes FILLED
-- Los precios utilizan el valor `close` del marketdata mas reciente
+### Calculo de Portfolio
+- El efectivo disponible se calcula sumando todos los movimientos `FILLED`
+- Las posiciones se calculan agregando compras y restando ventas
+- Los precios actuales se obtienen del `close` en `marketdata`
